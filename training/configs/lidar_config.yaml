@@ -1,0 +1,10 @@
+# ISPRS Benchmark 3D LiDAR Classification Configuration
+batch_size: 16
+lr: 0.001
+epochs: 30
+num_points: 4096
+num_classes: 4
+pointcloud_dir: "training/data/lidar/las"
+save_path: "training/models/lidar_pointnet_best.pt"
+class_weights: [1.0, 2.5, 1.2, 3.0]
+optimizer: "adamw"

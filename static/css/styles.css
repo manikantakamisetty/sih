@@ -1,0 +1,854 @@
+/* ==========================================================================
+   National 3D ULPIN & Vertical Cadastre Web Framework - Stylesheet
+   Modeled after DILRMP / Ministry of Land Resources Portal Aesthetics
+   ========================================================================== */
+
+:root {
+  --primary-navy: #0e3b6e;
+  --primary-navy-dark: #072242;
+  --primary-blue: #1b65b5;
+  --primary-blue-light: #e8f1fb;
+  --gov-gold: #e28743;
+  --gov-gold-light: #fef5ea;
+  --accent-teal: #0d9488;
+  --accent-cyan: #06b6d4;
+  --bg-slate: #f4f7fa;
+  --card-bg: #ffffff;
+  --border-light: #e2e8f0;
+  --border-subtle: #cbd5e1;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  --status-pending: #d97706;
+  --status-pending-bg: #fffbeb;
+  --status-approved: #10b981;
+  --status-approved-bg: #ecfdf5;
+  --status-rejected: #ef4444;
+  --status-rejected-bg: #fef2f2;
+  --status-blue: #3b82f6;
+  --status-blue-bg: #eff6ff;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-slate);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================= Top Banner & Header ================= */
+.gov-top-bar {
+  background: linear-gradient(90deg, #ff9933 0%, #ffffff 50%, #138808 100%);
+  height: 4px;
+  width: 100%;
+}
+
+.portal-header {
+  background: linear-gradient(135deg, var(--primary-navy) 0%, var(--primary-navy-dark) 100%);
+  color: #ffffff;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.emblem-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.brand-text h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.brand-text p {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.role-badge {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ================= Navigation Tabs (Roles) ================= */
+.role-tabs-bar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  padding: 0 24px;
+  gap: 8px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.role-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.role-tab-btn:hover {
+  color: var(--primary-blue);
+  background: var(--primary-blue-light);
+}
+
+.role-tab-btn.active {
+  color: var(--primary-navy);
+  border-bottom-color: var(--primary-navy);
+  font-weight: 700;
+}
+
+.tab-badge {
+  background: var(--primary-navy);
+  color: white;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.tab-badge.warn {
+  background: var(--status-rejected);
+}
+
+/* ================= Main Container & Grid Layout ================= */
+.main-wrapper {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+
+.portal-view {
+  display: none;
+}
+
+.portal-view.active {
+  display: block;
+}
+
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.grid-3col {
+  display: grid;
+  grid-template-columns: 360px 1fr 340px;
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .grid-2col, .grid-3col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================= Top Action Bar & Dashboard Headers ================= */
+.dashboard-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-title-group h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-navy);
+}
+
+.dashboard-title-group p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ================= Card Panels ================= */
+.cadastre-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.cadastre-card.highlight {
+  border-left: 4px solid var(--primary-navy);
+}
+
+.cadastre-card.warn-card {
+  border-left: 4px solid var(--status-rejected);
+}
+
+.cadastre-card.success-card {
+  border-left: 4px solid var(--status-approved);
+}
+
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+}
+
+.card-header h2, .card-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-body {
+  padding: 18px;
+}
+
+/* ================= AI Extracted & Parameter Badges ================= */
+.label-with-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.badge-ai-extracted {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-missing {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-manual {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* ================= Form Controls ================= */
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 5px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-main);
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(27, 101, 181, 0.15);
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+/* ================= File Upload Zone & Gemini Style Chips ================= */
+.dropzone-container {
+  border: 2px dashed #93c5fd;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dropzone-container:hover {
+  background: #eff6ff;
+  border-color: var(--primary-blue);
+}
+
+.dropzone-icon {
+  font-size: 26px;
+  color: var(--primary-blue);
+  margin-bottom: 4px;
+}
+
+.file-chips-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.gemini-file-chip {
+  background: #f1f5f9;
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 4px 10px 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  animation: fadeIn 0.2s ease;
+}
+
+.gemini-file-chip .chip-ext {
+  background: var(--primary-blue);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.gemini-file-chip .chip-remove {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.gemini-file-chip .chip-remove:hover {
+  background: var(--status-rejected);
+  color: white;
+}
+
+/* ================= 2D Vertical Plan Matrix ================= */
+.matrix-container {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 14px;
+}
+
+.matrix-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 12px;
+}
+
+.matrix-floor-row {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.matrix-floor-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-navy);
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.matrix-flats-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.flat-select-item {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.flat-select-item.selected {
+  border-color: var(--primary-blue);
+  background: #eff6ff;
+  font-weight: 600;
+}
+
+.flat-select-item.unselected {
+  opacity: 0.45;
+  background: #f1f5f9;
+}
+
+.color-swatch-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  display: inline-block;
+}
+
+/* ================= Selected Flat Dimension Override Editor ================= */
+.flat-editor-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+.flat-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.flat-editor-header h4 {
+  font-size: 13px;
+  color: var(--primary-navy);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ================= Three.js 3D Canvas Viewer ================= */
+.threejs-viewport-container {
+  position: relative;
+  background: radial-gradient(circle, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  height: 480px;
+  overflow: hidden;
+}
+
+.threejs-viewport-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.viewer-floating-controls {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.viewer-bottom-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-navy);
+}
+
+.explode-slider {
+  accent-color: var(--primary-blue);
+  cursor: pointer;
+  width: 110px;
+}
+
+/* ================= Status Badges & Pills ================= */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-pill.draft {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-pill.pending-planner {
+  background: var(--status-blue-bg);
+  color: var(--status-blue);
+  border: 1px solid #bfdbfe;
+}
+
+.status-pill.pending-sro {
+  background: var(--status-pending-bg);
+  color: var(--status-pending);
+  border: 1px solid #fde68a;
+}
+
+.status-pill.approved {
+  background: var(--status-approved-bg);
+  color: var(--status-approved);
+  border: 1px solid #a7f3d0;
+}
+
+.status-pill.rejected {
+  background: var(--status-rejected-bg);
+  color: var(--status-rejected);
+  border: 1px solid #fecaca;
+}
+
+/* ================= Action Buttons ================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--primary-navy);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-navy-dark);
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+.btn-success {
+  background: var(--status-approved);
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-danger {
+  background: var(--status-rejected);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* ================= Queue Card Item List ================= */
+.queue-card-item {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.queue-card-item:hover {
+  border-color: var(--primary-blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.queue-card-item.active {
+  border-color: var(--primary-navy);
+  background: #f8fafc;
+  border-left: 4px solid var(--primary-navy);
+}
+
+.queue-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.queue-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-navy);
+}
+
+.queue-item-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ================= Compliance & Itemized Checklist ================= */
+.check-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+}
+
+.check-item-row:last-child {
+  border-bottom: none;
+}
+
+.check-status-badge {
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.check-status-badge.accept {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.check-status-badge.reject {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* ================= Alert & Remark Boxes ================= */
+.remark-alert-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.remark-alert-box h4 {
+  color: #991b1b;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.remark-alert-box p {
+  color: #7f1d1d;
+}
+
+/* ================= Modal Backdrop ================= */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 520px;
+  overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+.modal-header {
+  padding: 14px 18px;
+  background: var(--primary-navy);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-body {
+  padding: 18px;
+}
+
+.modal-footer {
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

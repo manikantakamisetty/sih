@@ -1,0 +1,9 @@
+# CVC-FP / CubiCasa5k Floorplan Layout Parser Configuration
+batch_size: 8
+lr: 0.0005
+epochs: 20
+num_classes: 4
+target_size: [512, 512]
+floorplan_dir: "training/data/floorplans"
+save_path: "training/models/floorplan_parser_best.pt"
+optimizer: "adam"

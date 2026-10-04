@@ -1,0 +1,13 @@
+# SpaceNet / Inria Drone Footprint Segmentation Configuration
+batch_size: 8
+lr: 0.0003
+epochs: 25
+input_channels: 3
+num_classes: 2
+target_size: [512, 512]
+image_dir: "training/data/drone/images"
+label_dir: "training/data/drone/masks"
+save_path: "training/models/drone_footprint_best.pt"
+weight_decay: 0.0001
+scheduler: "cosine"
+min_lr: 0.00001

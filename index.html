@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>National 3D ULPIN & Vertical Cadastre Portal | DILRMP - Govt of India</title>
+  <meta name="description" content="Official Multi-Role 3D Cadastral Web Framework and ISO 19152 LADM Vertical Strata Registry System for India.">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Three.js & OrbitControls CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+  
+  <style>
+    #viewer-tooltip {
+      position: absolute;
+      display: none;
+      background: rgba(15, 23, 42, 0.9);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      pointer-events: none;
+      z-index: 100;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Tricolor Border -->
+  <div class="gov-top-bar"></div>
+
+  <!-- Main Gov Header -->
+  <header class="portal-header">
+    <div class="header-brand">
+      <div class="emblem-badge">🏛️</div>
+      <div class="brand-text">
+        <h1>Government of India • Dept. of Land Resources / DILRMP</h1>
+        <p>National 3D ULPIN & Vertical Cadastre Lifecycle System</p>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="role-badge">
+        <span>🌐 State: Telangana (Rangareddy Cadastre)</span>
+      </div>
+      <div class="role-badge" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981;">
+        <span>🔒 ISO 19152 LADM 3D Verified</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs (Role Switcher) -->
+  <nav class="role-tabs-bar">
+    <button class="role-tab-btn active" data-role="surveyor">
+      <span>📐</span> Surveyor Portal <span class="tab-badge">Intake & Revision</span>
+    </button>
+    <button class="role-tab-btn" data-role="planner">
+      <span>🏢</span> Town Planner Portal <span class="tab-badge">Geometric Audit</span>
+    </button>
+    <button class="role-tab-btn" data-role="sro">
+      <span>📜</span> SRO Portal <span class="tab-badge">Deed & 3D ULPIN</span>
+    </button>
+    <button class="role-tab-btn" data-role="citizen">
+      <span>🔍</span> Citizen Portal <span class="tab-badge">Read-Only</span>
+    </button>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="main-wrapper">
+
+    <!-- ================================================================= -->
+    <!-- 1. SURVEYOR PORTAL VIEW -->
+    <!-- ================================================================= -->
+    <section id="view-surveyor" class="portal-view active">
+      
+      <!-- Surveyor Action & Overview Bar -->
+      <div class="dashboard-action-bar">
+        <div class="dashboard-title-group">
+          <h2>📐 Cadastral Surveyor Intake & Lifecycle Management</h2>
+          <p>Create new vertical strata applications, track municipal approval pipelines, and resolve auditor revisions.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-secondary" onclick="loadApplicationsQueue()">🔄 Refresh Queue</button>
+          <button class="btn btn-primary" onclick="startNewApplication()">➕ New Application</button>
+        </div>
+      </div>
+
+      <!-- Surveyor Dashboard: Submissions in Progress vs Rejected Revisions -->
+      <div class="grid-2col" style="margin-bottom: 20px;">
+        
+        <!-- Left: In-Process Submissions -->
+        <div class="cadastre-card highlight">
+          <div class="card-header">
+            <h3><span>📤</span> My Submissions & In-Process Applications</h3>
+            <span class="status-pill pending-planner">Workflow Active</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+              Applications currently under review by Town Planning (Geometric Audit) or SRO (Title Registry).
+            </p>
+            <div id="surveyor-inprocess-list"></div>
+          </div>
+        </div>
+
+        <!-- Right: Rejected Revisions Queue -->
+        <div class="cadastre-card warn-card">
+          <div class="card-header">
+            <h3 style="color: #b91c1c;"><span>⚠️</span> Rejected Applications & Revision Queue</h3>
+            <span class="status-pill rejected">Action Required</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+              Applications returned with specific remarks from Town Planner or SRO. Click <strong>Edit & Resubmit</strong> to fix parameters.
+            </p>
+            <div id="surveyor-rejected-list"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Main Surveyor Intake Interface -->
+      <div id="surveyor-intake-card" class="grid-2col">
+        
+        <!-- Left Column: Location, Uploads, Parametric Fallback, 2D Matrix -->
+        <div>
+          
+          <!-- Step 1: Location Intake -->
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>📍</span> Step 1: Cadastral Location Intake</h3>
+              <span class="status-pill draft">Survey Grade</span>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label" for="input-location-search">Location Lookup (Google Maps Link):</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="input-location-search" class="form-input" 
+                         value="https://maps.app.goo.gl/MadhapurCyberTowers" 
+                         placeholder="Paste any Google Maps link (e.g. https://maps.app.goo.gl/..., https://goo.gl/maps/..., https://maps.google.com/...)...">
+                  <button class="btn btn-secondary" type="button" onclick="resolveMapLocationInput()">Locate</button>
+                </div>
+              </div>
+
+              <!-- Interactive Leaflet Map with Draggable Pin -->
+              <div id="leaflet-map" style="height: 200px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); margin-bottom: 12px;"></div>
+              
+              <!-- Editable Lat and Lng inputs -->
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="input-lat">Latitude (Editable):</label>
+                  <input type="number" step="0.000001" id="input-lat" class="form-input" value="17.448293" placeholder="Enter Latitude...">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="input-lng">Longitude (Editable):</label>
+                  <input type="number" step="0.000001" id="input-lng" class="form-input" value="78.384210" placeholder="Enter Longitude...">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Flexible Ingestion & Fallback Form -->
+          <div class="cadastre-card">
+            <div class="card-header">
+              <h3><span>📁</span> Step 2: Spatial Ingestion & Fallback</h3>
+              <span class="status-pill pending-planner">Graceful Degradation</span>
+            </div>
+            <div class="card-body">
+              <div class="dropzone-container" onclick="document.getElementById('file-input-elem').click()" ondragover="event.preventDefault()" ondrop="handleFileDrop(event)">
+                <div class="dropzone-icon">☁️</div>
+                <p style="font-size: 13px; font-weight: 600; color: var(--primary-navy);">Drop LiDAR, Drone Orthophoto, GIS, or CAD Blueprint files</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Supports .las, .laz, .tif, .geojson, .dxf (Click × on chip to remove)</p>
+                <input type="file" id="file-input-elem" style="display: none;" multiple onchange="handleFileDrop(event)">
+              </div>
+
+              <!-- Uploaded File Chips (Gemini style) -->
+              <div id="uploaded-file-chips" class="file-chips-wrapper"></div>
+
+              <!-- Parametric Fallback Inputs with AI Extracted Badges -->
+              <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border-light);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-size: 13px; font-weight: 700; color: var(--primary-navy);">Building Parametric Specifications</span>
+                  <label style="font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="chk-identical-flats" checked>
+                    <span>All flats are identical (Bulk Config)</span>
+                  </label>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-bldg-name">Building Name:</label>
+                      <span class="badge-manual">✍️ Manual Input</span>
+                    </div>
+                    <input type="text" id="input-bldg-name" class="form-input" value="Apex Sky View">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-ulpin-2d">2D ULPIN:</label>
+                      <span class="badge-manual">✍️ Base Parcel</span>
+                    </div>
+                    <input type="text" id="input-ulpin-2d" class="form-input" value="72541DC5174453">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-floors">Total Floors:</label>
+                      <span id="badge-floors" class="badge-ai-extracted">✨ AI Extracted (LiDAR Elevation)</span>
+                    </div>
+                    <input type="number" id="input-floors" class="form-input" value="4" min="1" max="20">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-flats-per-floor">Flats Per Floor:</label>
+                      <span id="badge-flats-per-floor" class="badge-ai-extracted">✨ AI Extracted (CAD Blueprint)</span>
+                    </div>
+                    <input type="number" id="input-flats-per-floor" class="form-input" value="3" min="1" max="10">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-bldg-typology">Architectural Plan Typology:</label>
+                      <span id="badge-typology" class="badge-ai-extracted">✨ AI Blueprint Extracted</span>
+                    </div>
+                    <select id="input-bldg-typology" class="form-select" onchange="onBuildingTypologyChange()">
+                      <option value="rectangular">Standard Rectangular Block (Linear Layout)</option>
+                      <option value="radial_3wing">Radial 3-Wing Y-Shape (Curved Central Atrium - Plan 1)</option>
+                      <option value="cruciform_4wing">Symmetrical 4-Wing Cruciform (Central Courtyard - Plan 2)</option>
+                      <option value="l_shape">L-Shaped Corner Strata (Right Angle Layout)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-floor-height">Floor Height (m):</label>
+                      <span id="badge-floor-height" class="badge-ai-extracted">✨ AI Extracted (LiDAR GSD)</span>
+                    </div>
+                    <input type="number" id="input-floor-height" class="form-input" value="3.0" step="0.1">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-bldg-length">Building Length (m):</label>
+                      <span id="badge-bldg-length" class="badge-ai-extracted">✨ AI Extracted (Drone Footprint)</span>
+                    </div>
+                    <input type="number" id="input-bldg-length" class="form-input" value="30.0" step="0.5">
+                  </div>
+                  <div class="form-group">
+                    <div class="label-with-badge">
+                      <label class="form-label" for="input-bldg-width">Building Width (m):</label>
+                      <span id="badge-bldg-width" class="badge-ai-extracted">✨ AI Extracted (Drone Footprint)</span>
+                    </div>
+                    <input type="number" id="input-bldg-width" class="form-input" value="20.0" step="0.5">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: 2D Vertical Plan Matrix & Dimension Editor -->
+              <div class="matrix-container">
+                <div class="matrix-header">
+                  <span style="font-size: 13px; font-weight: 700; color: var(--primary-navy);">2D Vertical Plan & Flat Matrix Selector</span>
+                  <label style="font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="chk-select-all-flats" checked onchange="toggleSelectAllFlats(this.checked)">
+                    <span>Select All Flats</span>
+                  </label>
+                </div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                  Tick any flat to open its custom dimension editor. Selected flats are vivid; unselected flats turn translucent grey in 3D.
+                </p>
+
+                <!-- Vertical Plan Rows (Floor 3 -> Ground) -->
+                <div id="vertical-matrix-rows"></div>
+
+                <!-- Selected Flat Dimension Override Panel -->
+                <div id="selected-flat-editor-container" style="margin-top: 12px;"></div>
+              </div>
+
+              <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="buildBuildingModelFromForm(); render3DBuildingMesh(CadastreState.currentBuilding);">Preview 3D</button>
+                <button type="button" id="btn-surveyor-submit" class="btn btn-primary">Submit to Town Planner ➔</button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Real-Time Three.js 3D WebGL Canvas & ULPIN Generator -->
+        <div>
+          
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>🏗️</span> Three.js 3D Cadastral Volumetric Model</h3>
+              <span class="status-pill approved">WebGL Active</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              
+              <div class="threejs-viewport-container">
+                <div id="threejs-canvas-wrapper" style="width: 100%; height: 100%;"></div>
+                <div id="viewer-tooltip"></div>
+
+                <!-- Floating Top Controls -->
+                <div class="viewer-floating-controls">
+                  <div class="slider-container">
+                    <label for="explode-slider-control">💥 Explode Floors:</label>
+                    <input type="range" id="explode-slider-control" class="explode-slider" min="0" max="100" value="0">
+                  </div>
+                </div>
+
+                <!-- Floating Bottom Bar -->
+                <div class="viewer-bottom-bar">
+                  <span>💡 Orbit: Click & Drag | Zoom: Scroll | Click Flat: Edit</span>
+                  <span style="color: var(--primary-navy); font-weight: 700;">Formula: 2D ULPIN + B(2d) + F(3d) + U(3d)</span>
+                </div>
+              </div>
+
+              <!-- Strata Details Panel -->
+              <div style="padding: 16px; background: #ffffff;">
+                <h4 style="font-size: 13px; font-weight: 700; color: var(--primary-navy); margin-bottom: 6px;">Generated 3D Strata Units & ULPINs:</h4>
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                  • <strong>2D Base Cadastre:</strong> <code>72541DC5174453</code> (Rangareddy SY-402/1A)<br>
+                  • <strong>Sample 3D ULPIN:</strong> <code style="color: var(--primary-blue); font-weight: 700;">72541DC5174453-B01-F002-U202</code><br>
+                  • <strong>Vertical Strata ISO 19152:</strong> Non-overlapping Polyhedral Surface Extrusion
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 2. TOWN PLANNER PORTAL VIEW -->
+    <!-- ================================================================= -->
+    <section id="view-planner" class="portal-view">
+      <div class="grid-2col">
+        
+        <!-- Queue & Compliance Checklist -->
+        <div>
+          
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>📋</span> Municipal Review Queue</h3>
+              <span class="status-pill pending-planner">HMDA Bye-Laws</span>
+            </div>
+            <div class="card-body">
+              <div id="planner-queue-container"></div>
+            </div>
+          </div>
+
+          <div class="cadastre-card">
+            <div class="card-header">
+              <h3 id="planner-bldg-title"><span>📐</span> Geometric Compliance Audit</h3>
+              <span class="status-pill approved">Automated Check</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                Automated comparison against local zoning rules (FAR max 2.50, Height ceiling 18.0m, Ground Coverage &lt;= 65%, Fire Shaft 1.5m).
+              </p>
+              
+              <div id="planner-checklist-container"></div>
+
+              <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-danger" onclick="openRejectionModal('planner')">✖ Reject & Rollback to Surveyor</button>
+                <button class="btn btn-success" onclick="approvePlannerApplication()">✔ Approve Geometry & Forward to SRO</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 3D Model Display for Planner -->
+        <div>
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>🏗️</span> Three.js 3D Volumetric Strata Inspection</h3>
+              <span class="status-pill approved">WebGL Active</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              
+              <div class="threejs-viewport-container">
+                <div id="planner-threejs-canvas-wrapper" style="width: 100%; height: 100%;"></div>
+                <div id="planner-viewer-tooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.9); color: white; padding: 6px 10px; border-radius: 4px; font-size: 11px; pointer-events: none; z-index: 100;"></div>
+
+                <!-- Floating Top Controls -->
+                <div class="viewer-floating-controls">
+                  <div class="slider-container">
+                    <label for="planner-explode-slider">💥 Explode Floors:</label>
+                    <input type="range" id="planner-explode-slider" class="explode-slider" min="0" max="100" value="0">
+                  </div>
+                </div>
+
+                <!-- Floating Bottom Bar -->
+                <div class="viewer-bottom-bar">
+                  <span>💡 Orbit: Click & Drag | Zoom: Scroll</span>
+                  <span style="color: var(--primary-navy); font-weight: 700;">Municipal Zoning Overlay</span>
+                </div>
+              </div>
+
+              <!-- Strata Details Panel for Planner -->
+              <div style="padding: 16px; background: #ffffff;">
+                <h4 style="font-size: 13px; font-weight: 700; color: var(--primary-navy); margin-bottom: 6px;">Zoning & Topology Status:</h4>
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                  • <strong>Master Plan Zone:</strong> Hyderabad Urban Development Authority (HMDA) 2031<br>
+                  • <strong>Zoning Category:</strong> R2 - High Density Residential / Mixed Commercial<br>
+                  • <strong>Topology Verification:</strong> 100% Non-intersecting Polyhedral Solid Envelope
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 3. SRO (SUB-REGISTRAR OFFICE) PORTAL VIEW -->
+    <!-- ================================================================= -->
+    <section id="view-sro" class="portal-view">
+      <div class="grid-2col">
+        
+        <!-- SRO Queue & Deed Registration -->
+        <div>
+          
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>📜</span> SRO Action Queue & Registry Records</h3>
+              <span class="status-pill pending-sro">IGR Protocol</span>
+            </div>
+            <div class="card-body">
+              <div id="sro-queue-container"></div>
+            </div>
+          </div>
+
+          <div class="cadastre-card">
+            <div class="card-header">
+              <h3><span>📑</span> Statutory Deed Linking & 3D ULPIN Sealing</h3>
+              <span class="status-pill approved">Stage 3</span>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label" for="sro-deed-doc-number">Registered Sale Deed Document Reference *</label>
+                <input type="text" id="sro-deed-doc-number" class="form-input" value="DOC-2026-TEL-B002-2391" placeholder="e.g. DOC-2026-TEL-B002-2391">
+              </div>
+
+              <!-- Itemized Floor and Flat Filters & Validate Mode Toggle -->
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 12px; font-weight: 700; color: var(--primary-navy);">Itemized Strata Unit Search & Audit:</span>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #b91c1c; background: #fef2f2; padding: 3px 8px; border-radius: 12px; border: 1px solid #fecaca; cursor: pointer;">
+                    <input type="checkbox" id="sro-validate-mode-checkbox" onchange="toggleSROValidateMode(this.checked)">
+                    <span>🛡️ Validate Mode (Rejected = Red, Others = Grey)</span>
+                  </label>
+                </div>
+                <div class="form-row">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <input type="text" id="sro-filter-floor" class="form-input" placeholder="Filter by Floor (e.g. Floor 2)" oninput="filterSROFlats()">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <input type="text" id="sro-filter-flat" class="form-input" placeholder="Filter by Flat (e.g. Flat 202)" oninput="filterSROFlats()">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Itemized Flat Audit List -->
+              <div id="sro-flats-audit-list" style="max-height: 320px; overflow-y: auto; padding-right: 4px;"></div>
+
+              <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-danger" onclick="openRejectionModal('sro')">✖ Reject Deed & Rollback</button>
+                <button class="btn btn-primary" style="background: var(--primary-navy);" onclick="lockCadastreAndIssueULPIN()">🔒 Lock 3D Cadastre & Issue ULPIN</button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Side: 3D Strata Three.js WebGL Canvas -->
+        <div>
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>🏛️</span> Three.js 3D Vertical Strata Legal Audit</h3>
+              <span class="status-pill approved">WebGL Active</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              
+              <div class="threejs-viewport-container">
+                <div id="sro-threejs-canvas-wrapper" style="width: 100%; height: 100%;"></div>
+                <div id="sro-viewer-tooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.9); color: white; padding: 6px 10px; border-radius: 4px; font-size: 11px; pointer-events: none; z-index: 100;"></div>
+
+                <!-- Floating Top Controls -->
+                <div class="viewer-floating-controls">
+                  <div class="slider-container">
+                    <label for="sro-explode-slider">💥 Explode Floors:</label>
+                    <input type="range" id="sro-explode-slider" class="explode-slider" min="0" max="100" value="0">
+                  </div>
+                  <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #b91c1c; cursor: pointer; margin-left: 8px;">
+                    <input type="checkbox" id="sro-canvas-validate-toggle" onchange="toggleSROValidateMode(this.checked)">
+                    <span>🛡️ Validate Mode</span>
+                  </label>
+                </div>
+
+                <!-- Floating Bottom Bar -->
+                <div class="viewer-bottom-bar">
+                  <span>💡 Orbit: Click & Drag | Zoom: Scroll | Click Flat: Audit</span>
+                  <span id="sro-status-legend" style="color: var(--primary-navy); font-weight: 700;">Standard Multi-Color Cadastre</span>
+                </div>
+              </div>
+
+              <!-- Registrar Details Panel -->
+              <div style="padding: 16px; background: #ffffff;">
+                <h4 style="font-size: 13px; font-weight: 700; color: var(--primary-navy); margin-bottom: 6px;">Statutory Registrar Protocol:</h4>
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                  • <strong>Authorized Registrar:</strong> M. S. Reddy, IGRS (Malkajgiri & Madhapur Registry Division)<br>
+                  • <strong>Protocol:</strong> Verify 3D non-overlapping strata bounds against legal deeds and issue immutable 3D ULPIN certificate.<br>
+                  • <strong>Validation Rule:</strong> In Validate Mode, rejected flats appear in <strong>Red</strong> and accepted in <strong>Grey</strong>.
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Modal: Historical Ownership & Title Chain Details -->
+    <div id="flat-history-modal" class="modal-backdrop">
+      <div class="modal-dialog" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3 id="modal-history-title" style="font-size: 14px; font-weight: 700;">📜 Title Chain & Previous Ownership Records</h3>
+          <button onclick="closeFlatHistoryModal()" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-history-body"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeFlatHistoryModal()">Close</button>
+          <button class="btn btn-primary" onclick="alert('IGRS Certified Encumbrance Statement Verified.'); closeFlatHistoryModal();">✔ Verify Chain of Title</button>
+        </div>
+      </div>
+    </div>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 4. CITIZEN PORTAL VIEW (READ-ONLY) -->
+    <!-- ================================================================= -->
+    <section id="view-citizen" class="portal-view">
+      <div class="grid-2col">
+        
+        <!-- Left Column: Citizen Property Verification & Title Details -->
+        <div>
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>🔍</span> Citizen Property & 3D ULPIN Verification</h3>
+              <span class="status-pill draft">Strictly Read-Only</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+                Enter your Flat's 3D ULPIN, Registered Owner Name, or Sale Deed Reference to verify statutory ownership and inspect your 3D flat unit.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label" for="citizen-input-3d-ulpin">3D Flat ULPIN *</label>
+                <input type="text" id="citizen-input-3d-ulpin" class="form-input" 
+                       value="72541DC5174453-B02-F002-U202" 
+                       placeholder="e.g. 72541DC5174453-B02-F002-U202">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="citizen-input-owner">Registered Owner Name</label>
+                  <input type="text" id="citizen-input-owner" class="form-input" 
+                         value="Allotted Holder Unit 202" 
+                         placeholder="e.g. Allotted Holder Unit 202">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="citizen-input-deed">Registered Deed Reference</label>
+                  <input type="text" id="citizen-input-deed" class="form-input" 
+                         value="DOC-2026-TEL-B002-2391" 
+                         placeholder="e.g. DOC-2026-TEL-B002-2391">
+                </div>
+              </div>
+
+              <div style="margin-top: 10px; margin-bottom: 16px;">
+                <button class="btn btn-primary" style="width: 100%;" onclick="performCitizenLookup()">
+                  🔍 Verify Flat & Inspect 3D Building
+                </button>
+              </div>
+
+              <!-- Verified Property Result Details Card -->
+              <div id="citizen-result-panel" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 8px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <div>
+                    <h3 id="citizen-bldg-name" style="font-size: 15px; color: var(--primary-navy); font-weight: 700;">Cyber Stratum Enclave</h3>
+                    <p id="citizen-address" style="font-size: 11px; color: var(--text-muted);">Plot 18, Cyber Towers Sector, Madhapur, Rangareddy, Hyderabad</p>
+                  </div>
+                  <span class="status-pill approved">✔ Statutory Title Verified</span>
+                </div>
+
+                <div style="font-size: 12px; line-height: 1.8; color: #1e293b;">
+                  • <strong>Verified Flat Unit:</strong> <span id="citizen-flat-number" style="font-weight:700; color:#059669;">Flat 202 (Floor 2)</span><br>
+                  • <strong>3D ULPIN:</strong> <code id="citizen-verified-ulpin" style="color: var(--primary-navy); font-weight: 700;">72541DC5174453-B02-F002-U202</code><br>
+                  • <strong>Registered Owner:</strong> <span id="citizen-verified-owner" style="font-weight:600;">Allotted Holder Unit 202 (100% Title Share)</span><br>
+                  • <strong>Registered Sale Deed:</strong> <span id="citizen-verified-deed">DOC-2026-TEL-B002-2391</span><br>
+                  • <strong>Vertical Strata Bounds:</strong> <span id="citizen-strata-bounds">Level 2: 6.0m - 9.0m (Floor Height 3.0m)</span><br>
+                  • <strong>Unit Area:</strong> <span id="citizen-unit-area">60.0 m² (10.0m × 6.0m)</span><br>
+                  • <strong>Title Encumbrance Status:</strong> <span style="color:#059669; font-weight:700;">NIL (30-Year Clean Title)</span>
+                </div>
+
+                <div style="margin-top: 14px; text-align: right;">
+                  <button class="btn btn-secondary btn-sm" onclick="alert('Downloading Certified 3D Cadastral Property Card PDF with IGRS Digital Seal...')">
+                    📥 Download Official 3D Cadastral Card
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Three.js 3D WebGL Canvas for Citizen -->
+        <div>
+          <div class="cadastre-card highlight">
+            <div class="card-header">
+              <h3><span>🏗️</span> Three.js 3D Building Explorer</h3>
+              <span class="status-pill approved">WebGL Active</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              
+              <div class="threejs-viewport-container">
+                <div id="citizen-threejs-canvas-wrapper" style="width: 100%; height: 100%;"></div>
+                <div id="citizen-viewer-tooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.9); color: white; padding: 6px 10px; border-radius: 4px; font-size: 11px; pointer-events: none; z-index: 100;"></div>
+
+                <!-- Floating Top Controls -->
+                <div class="viewer-floating-controls">
+                  <div class="slider-container">
+                    <label for="citizen-explode-slider">💥 Explode Floors:</label>
+                    <input type="range" id="citizen-explode-slider" class="explode-slider" min="0" max="100" value="0">
+                  </div>
+                  <span style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 12px; margin-left: 8px;">
+                    🟢 Your Flat (Green) | ⚪ Others (Grey)
+                  </span>
+                </div>
+
+                <!-- Floating Bottom Bar -->
+                <div class="viewer-bottom-bar">
+                  <span>💡 Orbit: Click & Drag | Zoom: Scroll</span>
+                  <span id="citizen-3d-highlight-label" style="color: var(--primary-navy); font-weight: 700;">Highlighting Flat 202</span>
+                </div>
+              </div>
+
+              <!-- Citizen Info Banner -->
+              <div style="padding: 16px; background: #ffffff;">
+                <h4 style="font-size: 13px; font-weight: 700; color: var(--primary-navy); margin-bottom: 6px;">3D Strata Unit Verification:</h4>
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                  • <strong>Highlight Rule:</strong> Your flat unit is highlighted in <strong>Green</strong>. All remaining building strata units are rendered in <strong>Grey</strong>.<br>
+                  • <strong>Immutable Registry:</strong> Sealed under DILRMP / IGRS Statutory Land Administration Domain Model.
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Rejection Remarks Modal Dialog -->
+  <div id="rejection-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 style="font-size: 14px; font-weight: 700;">Mandatory Rejection Remarks</h3>
+        <button onclick="closeRejectionModal()" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+          As <strong id="rejection-role-label">Auditor</strong>, please provide specific remarks explaining why this application is rejected. This will immediately roll back the state to the Surveyor for revisions.
+        </p>
+        <textarea id="rejection-text-input" class="form-textarea" rows="4" placeholder="Enter specific corrections required (e.g. Building height exceeds 18m limit, adjust floor count)..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRejectionModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="submitRejectionRemarks()">Confirm Rejection & Rollback</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom JavaScript -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
