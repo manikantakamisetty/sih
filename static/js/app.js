@@ -86,19 +86,30 @@ function setupRoleNavigation() {
       const activeView = document.getElementById(`view-${role}`);
       if (activeView) activeView.classList.add('active');
 
-      // Refresh 3D canvas resize
-      setTimeout(() => {
-        onWindowResize();
-        if (typeof onPlannerWindowResize === 'function') onPlannerWindowResize();
-        if (typeof onSROWindowResize === 'function') onSROWindowResize();
-        if (typeof onCitizenWindowResize === 'function') onCitizenWindowResize();
-      }, 100);
+      // Refresh queue cards across all roles
+      renderAllQueueCards();
 
-      // Role specific reload
-      if (role === 'surveyor') renderSurveyorDashboard();
-      if (role === 'planner') renderPlannerView();
-      if (role === 'sro') renderSROView();
-      if (role === 'citizen') performCitizenLookup();
+      // Role specific reload and canvas resize
+      if (role === 'surveyor') {
+        renderSurveyorDashboard();
+        setTimeout(onWindowResize, 50);
+        setTimeout(onWindowResize, 200);
+      }
+      if (role === 'planner') {
+        renderPlannerView();
+        setTimeout(onPlannerWindowResize, 50);
+        setTimeout(onPlannerWindowResize, 200);
+      }
+      if (role === 'sro') {
+        renderSROView();
+        setTimeout(onSROWindowResize, 50);
+        setTimeout(onSROWindowResize, 200);
+      }
+      if (role === 'citizen') {
+        performCitizenLookup();
+        setTimeout(onCitizenWindowResize, 50);
+        setTimeout(onCitizenWindowResize, 200);
+      }
     });
   });
 }
@@ -1262,21 +1273,57 @@ function selectApplication(appId) {
   document.getElementById('input-bldg-width').value = app.building_params.building_width;
   document.getElementById('input-floor-height').value = app.building_params.floor_height;
 
+  // Sync SRO deed doc number if SRO input exists
+  const deedInput = document.getElementById('sro-deed-doc-number');
+  if (deedInput) {
+    let sampleDeed = `DOC-2026-TEL-${app.building_params.building_id}-0001`;
+    if (app.building_params.floors && app.building_params.floors[0] && app.building_params.floors[0].flats[0]) {
+      sampleDeed = app.building_params.floors[0].flats[0].deed_reference || sampleDeed;
+    }
+    deedInput.value = sampleDeed;
+  }
+
+  // Typology dropdown sync
+  const typologySelect = document.getElementById('input-bldg-typology');
+  if (typologySelect && app.building_params.building_typology) {
+    typologySelect.value = app.building_params.building_typology;
+  }
+
   updateMapCoords(app.coordinates.latitude, app.coordinates.longitude, app.coordinates.address);
 
   // Initialize selected flats
   CadastreState.selectedFlatIds.clear();
-  app.building_params.floors.forEach(f => f.flats.forEach(fl => CadastreState.selectedFlatIds.add(fl.flat_id)));
-  CadastreState.activeEditingFlatId = app.building_params.floors[0].flats[0].flat_id;
+  if (app.building_params.floors && Array.isArray(app.building_params.floors)) {
+    app.building_params.floors.forEach(f => {
+      if (f.flats && Array.isArray(f.flats)) {
+        f.flats.forEach(fl => CadastreState.selectedFlatIds.add(fl.flat_id));
+      }
+    });
+    if (app.building_params.floors.length > 0 && app.building_params.floors[0].flats && app.building_params.floors[0].flats.length > 0) {
+      CadastreState.activeEditingFlatId = app.building_params.floors[0].flats[0].flat_id;
+    }
+  }
 
   render2DVerticalMatrix(CadastreState.currentBuilding);
   render3DBuildingMesh(CadastreState.currentBuilding);
   renderFileChips();
   updateParameterBadges();
   renderSurveyorDashboard();
+  renderAllQueueCards();
 
-  if (CadastreState.activeRole === 'planner') renderPlannerView();
-  if (CadastreState.activeRole === 'sro') renderSROView();
+  // Active role synchronization
+  if (CadastreState.activeRole === 'planner') {
+    renderPlannerView();
+    setTimeout(onPlannerWindowResize, 50);
+  }
+  if (CadastreState.activeRole === 'sro') {
+    renderSROView();
+    setTimeout(onSROWindowResize, 50);
+  }
+  if (CadastreState.activeRole === 'citizen') {
+    performCitizenLookup();
+    setTimeout(onCitizenWindowResize, 50);
+  }
 }
 
 function renderAllQueueCards() {
@@ -1405,20 +1452,24 @@ function onPlannerWindowResize() {
 
 function renderPlanner3DBuildingMesh(building) {
   initPlannerThreeJsViewer();
-  if (!plannerThreeInstance.scene || !building) return;
+  if (!plannerThreeInstance.scene || !building || !building.floors) return;
 
   plannerThreeInstance.meshes.forEach(mesh => plannerThreeInstance.scene.remove(mesh));
   plannerThreeInstance.meshes = [];
 
-  const floorHeight = building.floor_height || 3.0;
-  const bldgLength = building.building_length || 30.0;
-  const bldgWidth = building.building_width || 20.0;
-
+  const floorHeight = parseFloat(building.floor_height) || 3.0;
+  const bldgLength = parseFloat(building.building_length) || 30.0;
+  const bldgWidth = parseFloat(building.building_width) || 20.0;
+  const totalFloors = parseInt(building.total_floors, 10) || building.floors.length || 4;
   const typology = building.building_typology || 'rectangular';
+
+  if (plannerThreeInstance.controls) {
+    plannerThreeInstance.controls.target.set(0, (totalFloors * floorHeight) / 2, 0);
+  }
 
   // Central atrium core if radial or cruciform
   if (typology === 'radial_3wing' || typology === 'cruciform_4wing') {
-    for (let f = 0; f < building.total_floors; f++) {
+    for (let f = 0; f < totalFloors; f++) {
       const coreGeom = new THREE.CylinderGeometry(3.5, 3.5, floorHeight - 0.2, typology === 'radial_3wing' ? 3 : 4);
       const coreMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.85 });
       const coreMesh = new THREE.Mesh(coreGeom, coreMat);
@@ -1431,47 +1482,51 @@ function renderPlanner3DBuildingMesh(building) {
     }
   }
 
-  building.floors.forEach(floor => {
-    const flatsCount = floor.flats.length;
+  building.floors.forEach((floor, fIdx) => {
+    const floorNum = typeof floor.floor_number === 'number' ? floor.floor_number : fIdx;
+    const flatsCount = (floor.flats && floor.flats.length) ? floor.flats.length : 1;
 
-    floor.flats.forEach((flat, idx) => {
-      const posData = getFlatPositionAndRotation(typology, floor.floor_number, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flat.height);
-      const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
-      
-      const mat = new THREE.MeshStandardMaterial({
-        color: flat.color_hex,
-        roughness: 0.3,
-        metalness: 0.1,
-        transparent: true,
-        opacity: 0.92
+    if (floor.flats && Array.isArray(floor.flats)) {
+      floor.flats.forEach((flat, idx) => {
+        const flatH = parseFloat(flat.height) || floorHeight;
+        const posData = getFlatPositionAndRotation(typology, floorNum, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flatH);
+        const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
+        
+        const mat = new THREE.MeshStandardMaterial({
+          color: flat.color_hex || '#4ECDC4',
+          roughness: 0.3,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.92
+        });
+
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(posData.posX, posData.posY, posData.posZ);
+        if (posData.rotY) mesh.rotation.y = posData.rotY;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        const edgeGeom = new THREE.EdgesGeometry(geom);
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x072242, linewidth: 1.5, transparent: true, opacity: 0.6 });
+        const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+        mesh.add(edgeLine);
+
+        mesh.userData = {
+          flatId: flat.flat_id,
+          flatNumber: flat.flat_number || `Flat ${floorNum * 100 + idx + 1}`,
+          floorNumber: floorNum,
+          floorLabel: floor.floor_label || `Floor ${floorNum}`,
+          ulpin3D: flat.ulpin_3d || '',
+          colorHex: flat.color_hex || '#4ECDC4',
+          baseY: posData.posY,
+          area: flat.area_sqm || 0,
+          owner: flat.owner_name || 'Allotted Holder'
+        };
+
+        plannerThreeInstance.scene.add(mesh);
+        plannerThreeInstance.meshes.push(mesh);
       });
-
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(posData.posX, posData.posY, posData.posZ);
-      if (posData.rotY) mesh.rotation.y = posData.rotY;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-
-      const edgeGeom = new THREE.EdgesGeometry(geom);
-      const edgeMat = new THREE.LineBasicMaterial({ color: 0x072242, linewidth: 1.5, transparent: true, opacity: 0.6 });
-      const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
-      mesh.add(edgeLine);
-
-      mesh.userData = {
-        flatId: flat.flat_id,
-        flatNumber: flat.flat_number,
-        floorNumber: floor.floor_number,
-        floorLabel: floor.floor_label,
-        ulpin3D: flat.ulpin_3d,
-        colorHex: flat.color_hex,
-        baseY: posData.posY,
-        area: flat.area_sqm,
-        owner: flat.owner_name
-      };
-
-      plannerThreeInstance.scene.add(mesh);
-      plannerThreeInstance.meshes.push(mesh);
-    });
+    }
   });
 
   applyPlannerFloorExplode(plannerThreeInstance.explodeFactor);
@@ -1768,20 +1823,24 @@ function onSROWindowResize() {
 
 function renderSRO3DBuildingMesh(building) {
   initSROThreeJsViewer();
-  if (!sroThreeInstance.scene || !building) return;
+  if (!sroThreeInstance.scene || !building || !building.floors) return;
 
   sroThreeInstance.meshes.forEach(mesh => sroThreeInstance.scene.remove(mesh));
   sroThreeInstance.meshes = [];
 
-  const floorHeight = building.floor_height || 3.0;
-  const bldgLength = building.building_length || 30.0;
-  const bldgWidth = building.building_width || 20.0;
-
+  const floorHeight = parseFloat(building.floor_height) || 3.0;
+  const bldgLength = parseFloat(building.building_length) || 30.0;
+  const bldgWidth = parseFloat(building.building_width) || 20.0;
+  const totalFloors = parseInt(building.total_floors, 10) || building.floors.length || 4;
   const typology = building.building_typology || 'rectangular';
+
+  if (sroThreeInstance.controls) {
+    sroThreeInstance.controls.target.set(0, (totalFloors * floorHeight) / 2, 0);
+  }
 
   // Central atrium core if radial or cruciform
   if (typology === 'radial_3wing' || typology === 'cruciform_4wing') {
-    for (let f = 0; f < building.total_floors; f++) {
+    for (let f = 0; f < totalFloors; f++) {
       const coreGeom = new THREE.CylinderGeometry(3.5, 3.5, floorHeight - 0.2, typology === 'radial_3wing' ? 3 : 4);
       const coreMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.85 });
       const coreMesh = new THREE.Mesh(coreGeom, coreMat);
@@ -1794,63 +1853,67 @@ function renderSRO3DBuildingMesh(building) {
     }
   }
 
-  building.floors.forEach(floor => {
-    const flatsCount = floor.flats.length;
+  building.floors.forEach((floor, fIdx) => {
+    const floorNum = typeof floor.floor_number === 'number' ? floor.floor_number : fIdx;
+    const flatsCount = (floor.flats && floor.flats.length) ? floor.flats.length : 1;
 
-    floor.flats.forEach((flat, idx) => {
-      const posData = getFlatPositionAndRotation(typology, floor.floor_number, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flat.height);
-      const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
-      
-      // Compute color based on Validate Mode
-      let displayColor = flat.color_hex;
-      let opacity = 0.92;
+    if (floor.flats && Array.isArray(floor.flats)) {
+      floor.flats.forEach((flat, idx) => {
+        const flatH = parseFloat(flat.height) || floorHeight;
+        const posData = getFlatPositionAndRotation(typology, floorNum, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flatH);
+        const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
+        
+        // Compute color based on Validate Mode
+        let displayColor = flat.color_hex || '#4ECDC4';
+        let opacity = 0.92;
 
-      if (sroThreeInstance.isValidateMode) {
-        if (!flat.accepted_by_sro) {
-          displayColor = '#ef4444'; // Red for rejected
-          opacity = 0.95;
-        } else {
-          displayColor = '#94a3b8'; // Grey for accepted
-          opacity = 0.35;
+        if (sroThreeInstance.isValidateMode) {
+          if (!flat.accepted_by_sro) {
+            displayColor = '#ef4444'; // Red for rejected
+            opacity = 0.95;
+          } else {
+            displayColor = '#94a3b8'; // Grey for accepted
+            opacity = 0.35;
+          }
         }
-      }
 
-      const mat = new THREE.MeshStandardMaterial({
-        color: displayColor,
-        roughness: 0.3,
-        metalness: 0.1,
-        transparent: true,
-        opacity: opacity
+        const mat = new THREE.MeshStandardMaterial({
+          color: displayColor,
+          roughness: 0.3,
+          metalness: 0.1,
+          transparent: true,
+          opacity: opacity
+        });
+
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(posData.posX, posData.posY, posData.posZ);
+        if (posData.rotY) mesh.rotation.y = posData.rotY;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        const edgeColor = sroThreeInstance.isValidateMode && !flat.accepted_by_sro ? 0x991b1b : 0x072242;
+        const edgeGeom = new THREE.EdgesGeometry(geom);
+        const edgeMat = new THREE.LineBasicMaterial({ color: edgeColor, linewidth: 1.5, transparent: true, opacity: 0.7 });
+        const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+        mesh.add(edgeLine);
+
+        mesh.userData = {
+          flatId: flat.flat_id,
+          flatNumber: flat.flat_number || `Flat ${floorNum * 100 + idx + 1}`,
+          floorNumber: floorNum,
+          floorLabel: floor.floor_label || `Floor ${floorNum}`,
+          ulpin3D: flat.ulpin_3d || '',
+          colorHex: flat.color_hex || '#4ECDC4',
+          baseY: posData.posY,
+          area: flat.area_sqm || 0,
+          owner: flat.owner_name || 'Allotted Holder',
+          accepted: flat.accepted_by_sro !== false
+        };
+
+        sroThreeInstance.scene.add(mesh);
+        sroThreeInstance.meshes.push(mesh);
       });
-
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(posData.posX, posData.posY, posData.posZ);
-      if (posData.rotY) mesh.rotation.y = posData.rotY;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-
-      const edgeColor = sroThreeInstance.isValidateMode && !flat.accepted_by_sro ? 0x991b1b : 0x072242;
-      const edgeGeom = new THREE.EdgesGeometry(geom);
-      const edgeMat = new THREE.LineBasicMaterial({ color: edgeColor, linewidth: 1.5, transparent: true, opacity: 0.7 });
-      const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
-      mesh.add(edgeLine);
-
-      mesh.userData = {
-        flatId: flat.flat_id,
-        flatNumber: flat.flat_number,
-        floorNumber: floor.floor_number,
-        floorLabel: floor.floor_label,
-        ulpin3D: flat.ulpin_3d,
-        colorHex: flat.color_hex,
-        baseY: posData.posY,
-        area: flat.area_sqm,
-        owner: flat.owner_name,
-        accepted: flat.accepted_by_sro
-      };
-
-      sroThreeInstance.scene.add(mesh);
-      sroThreeInstance.meshes.push(mesh);
-    });
+    }
   });
 
   applySROFloorExplode(sroThreeInstance.explodeFactor);
