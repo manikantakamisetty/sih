@@ -46,8 +46,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLeafletMap();
   initThreeJsViewer();
   setupEventListeners();
+
+  // Immediately generate and render 3D building mesh from form parameters
+  CadastreState.currentBuilding = buildBuildingModelFromForm();
+  CadastreState.selectedFlatIds.clear();
+  CadastreState.currentBuilding.floors.forEach(f => f.flats.forEach(fl => CadastreState.selectedFlatIds.add(fl.flat_id)));
+  if (CadastreState.currentBuilding.floors.length > 0 && CadastreState.currentBuilding.floors[0].flats.length > 0) {
+    CadastreState.activeEditingFlatId = CadastreState.currentBuilding.floors[0].flats[0].flat_id;
+  }
+  render2DVerticalMatrix(CadastreState.currentBuilding);
+  render3DBuildingMesh(CadastreState.currentBuilding);
+  renderFileChips();
+  updateParameterBadges();
+
+  // Load from backend database if available
   await loadApplicationsQueue();
-  selectApplication('APP-TEL-2026-002');
+  if (CadastreState.applications && CadastreState.applications.length > 0) {
+    const targetApp = CadastreState.applications.find(a => a.application_id === 'APP-TEL-2026-002') || CadastreState.applications[0];
+    selectApplication(targetApp.application_id);
+  }
 });
 
 // -------------------------------------------------------------
@@ -1003,7 +1020,7 @@ function render3DBuildingMesh(building) {
         floorLabel: floor.floor_label,
         ulpin3D: flat.ulpin_3d,
         colorHex: flat.color_hex,
-        baseY: basePosY,
+        baseY: posData.posY,
         area: flat.area_sqm,
         owner: flat.owner_name,
         deed: flat.deed_reference
@@ -1386,21 +1403,29 @@ function renderPlanner3DBuildingMesh(building) {
   const bldgLength = building.building_length || 30.0;
   const bldgWidth = building.building_width || 20.0;
 
+  const typology = building.building_typology || 'rectangular';
+
+  // Central atrium core if radial or cruciform
+  if (typology === 'radial_3wing' || typology === 'cruciform_4wing') {
+    for (let f = 0; f < building.total_floors; f++) {
+      const coreGeom = new THREE.CylinderGeometry(3.5, 3.5, floorHeight - 0.2, typology === 'radial_3wing' ? 3 : 4);
+      const coreMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.85 });
+      const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+      coreMesh.position.set(0, f * floorHeight + (floorHeight / 2), 0);
+      coreMesh.userData = { floorNumber: f, baseY: f * floorHeight + (floorHeight / 2) };
+      const coreEdge = new THREE.LineSegments(new THREE.EdgesGeometry(coreGeom), new THREE.LineBasicMaterial({ color: 0x64748b }));
+      coreMesh.add(coreEdge);
+      plannerThreeInstance.scene.add(coreMesh);
+      plannerThreeInstance.meshes.push(coreMesh);
+    }
+  }
+
   building.floors.forEach(floor => {
     const flatsCount = floor.flats.length;
-    const flatsPerSide = Math.max(1, Math.ceil(flatsCount / 2));
-    const flatLen = bldgLength / flatsPerSide;
-    const flatWid = bldgWidth / 2;
 
     floor.flats.forEach((flat, idx) => {
-      const row = idx % 2;
-      const col = Math.floor(idx / 2);
-
-      const posX = -bldgLength / 2 + flatLen * col + flatLen / 2;
-      const posZ = -bldgWidth / 2 + flatWid * row + flatWid / 2;
-      const basePosY = floor.floor_number * floorHeight + (flat.height / 2);
-
-      const geom = new THREE.BoxGeometry(flat.length - 0.4, flat.height - 0.1, flat.width - 0.4);
+      const posData = getFlatPositionAndRotation(typology, floor.floor_number, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flat.height);
+      const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
       
       const mat = new THREE.MeshStandardMaterial({
         color: flat.color_hex,
@@ -1411,7 +1436,8 @@ function renderPlanner3DBuildingMesh(building) {
       });
 
       const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(posX, basePosY, posZ);
+      mesh.position.set(posData.posX, posData.posY, posData.posZ);
+      if (posData.rotY) mesh.rotation.y = posData.rotY;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
@@ -1427,7 +1453,7 @@ function renderPlanner3DBuildingMesh(building) {
         floorLabel: floor.floor_label,
         ulpin3D: flat.ulpin_3d,
         colorHex: flat.color_hex,
-        baseY: basePosY,
+        baseY: posData.posY,
         area: flat.area_sqm,
         owner: flat.owner_name
       };
@@ -1740,21 +1766,29 @@ function renderSRO3DBuildingMesh(building) {
   const bldgLength = building.building_length || 30.0;
   const bldgWidth = building.building_width || 20.0;
 
+  const typology = building.building_typology || 'rectangular';
+
+  // Central atrium core if radial or cruciform
+  if (typology === 'radial_3wing' || typology === 'cruciform_4wing') {
+    for (let f = 0; f < building.total_floors; f++) {
+      const coreGeom = new THREE.CylinderGeometry(3.5, 3.5, floorHeight - 0.2, typology === 'radial_3wing' ? 3 : 4);
+      const coreMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.85 });
+      const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+      coreMesh.position.set(0, f * floorHeight + (floorHeight / 2), 0);
+      coreMesh.userData = { floorNumber: f, baseY: f * floorHeight + (floorHeight / 2) };
+      const coreEdge = new THREE.LineSegments(new THREE.EdgesGeometry(coreGeom), new THREE.LineBasicMaterial({ color: 0x64748b }));
+      coreMesh.add(coreEdge);
+      sroThreeInstance.scene.add(coreMesh);
+      sroThreeInstance.meshes.push(coreMesh);
+    }
+  }
+
   building.floors.forEach(floor => {
     const flatsCount = floor.flats.length;
-    const flatsPerSide = Math.max(1, Math.ceil(flatsCount / 2));
-    const flatLen = bldgLength / flatsPerSide;
-    const flatWid = bldgWidth / 2;
 
     floor.flats.forEach((flat, idx) => {
-      const row = idx % 2;
-      const col = Math.floor(idx / 2);
-
-      const posX = -bldgLength / 2 + flatLen * col + flatLen / 2;
-      const posZ = -bldgWidth / 2 + flatWid * row + flatWid / 2;
-      const basePosY = floor.floor_number * floorHeight + (flat.height / 2);
-
-      const geom = new THREE.BoxGeometry(flat.length - 0.4, flat.height - 0.1, flat.width - 0.4);
+      const posData = getFlatPositionAndRotation(typology, floor.floor_number, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flat.height);
+      const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
       
       // Compute color based on Validate Mode
       let displayColor = flat.color_hex;
@@ -1779,7 +1813,8 @@ function renderSRO3DBuildingMesh(building) {
       });
 
       const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(posX, basePosY, posZ);
+      mesh.position.set(posData.posX, posData.posY, posData.posZ);
+      if (posData.rotY) mesh.rotation.y = posData.rotY;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
@@ -1796,7 +1831,7 @@ function renderSRO3DBuildingMesh(building) {
         floorLabel: floor.floor_label,
         ulpin3D: flat.ulpin_3d,
         colorHex: flat.color_hex,
-        baseY: basePosY,
+        baseY: posData.posY,
         area: flat.area_sqm,
         owner: flat.owner_name,
         accepted: flat.accepted_by_sro
@@ -2209,21 +2244,29 @@ function renderCitizen3DBuildingMesh(building, targetFlatId) {
   const bldgLength = building.building_length || 30.0;
   const bldgWidth = building.building_width || 20.0;
 
+  const typology = building.building_typology || 'rectangular';
+
+  // Central atrium core if radial or cruciform
+  if (typology === 'radial_3wing' || typology === 'cruciform_4wing') {
+    for (let f = 0; f < building.total_floors; f++) {
+      const coreGeom = new THREE.CylinderGeometry(3.5, 3.5, floorHeight - 0.2, typology === 'radial_3wing' ? 3 : 4);
+      const coreMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.85 });
+      const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+      coreMesh.position.set(0, f * floorHeight + (floorHeight / 2), 0);
+      coreMesh.userData = { floorNumber: f, baseY: f * floorHeight + (floorHeight / 2) };
+      const coreEdge = new THREE.LineSegments(new THREE.EdgesGeometry(coreGeom), new THREE.LineBasicMaterial({ color: 0x64748b }));
+      coreMesh.add(coreEdge);
+      citizenThreeInstance.scene.add(coreMesh);
+      citizenThreeInstance.meshes.push(coreMesh);
+    }
+  }
+
   building.floors.forEach(floor => {
     const flatsCount = floor.flats.length;
-    const flatsPerSide = Math.max(1, Math.ceil(flatsCount / 2));
-    const flatLen = bldgLength / flatsPerSide;
-    const flatWid = bldgWidth / 2;
 
     floor.flats.forEach((flat, idx) => {
-      const row = idx % 2;
-      const col = Math.floor(idx / 2);
-
-      const posX = -bldgLength / 2 + flatLen * col + flatLen / 2;
-      const posZ = -bldgWidth / 2 + flatWid * row + flatWid / 2;
-      const basePosY = floor.floor_number * floorHeight + (flat.height / 2);
-
-      const geom = new THREE.BoxGeometry(flat.length - 0.4, flat.height - 0.1, flat.width - 0.4);
+      const posData = getFlatPositionAndRotation(typology, floor.floor_number, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flat.height);
+      const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
 
       // Highlight logic:
       // Citizen's flat: Green (#10b981), opacity 0.95
@@ -2241,7 +2284,8 @@ function renderCitizen3DBuildingMesh(building, targetFlatId) {
       });
 
       const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(posX, basePosY, posZ);
+      mesh.position.set(posData.posX, posData.posY, posData.posZ);
+      if (posData.rotY) mesh.rotation.y = posData.rotY;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
@@ -2258,7 +2302,7 @@ function renderCitizen3DBuildingMesh(building, targetFlatId) {
 
       // If citizen flat, add luminous outline
       if (isCitizenFlat) {
-        const glowGeom = new THREE.BoxGeometry(flat.length - 0.3, flat.height, flat.width - 0.3);
+        const glowGeom = new THREE.BoxGeometry(posData.geomL + 0.1, posData.geomH + 0.1, posData.geomW + 0.1);
         const glowEdge = new THREE.LineSegments(
           new THREE.EdgesGeometry(glowGeom),
           new THREE.LineBasicMaterial({ color: 0x34d399, linewidth: 2 })
@@ -2273,7 +2317,7 @@ function renderCitizen3DBuildingMesh(building, targetFlatId) {
         floorLabel: floor.floor_label,
         ulpin3D: flat.ulpin_3d,
         colorHex: flat.color_hex,
-        baseY: basePosY,
+        baseY: posData.posY,
         area: flat.area_sqm,
         owner: flat.owner_name,
         deed: flat.deed_reference,
