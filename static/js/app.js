@@ -958,19 +958,25 @@ function onWindowResize() {
 }
 
 function render3DBuildingMesh(building) {
-  if (!CadastreState.threeScene || !building) return;
+  if (!CadastreState.threeScene || !building || !building.floors) return;
 
   CadastreState.threeMeshes.forEach(mesh => CadastreState.threeScene.remove(mesh));
   CadastreState.threeMeshes = [];
 
-  const floorHeight = building.floor_height || 3.0;
-  const bldgLength = building.building_length || 30.0;
-  const bldgWidth = building.building_width || 20.0;
-  const typology = building.building_typology || 'rectangular';
+  const floorHeight = parseFloat(building.floor_height) || 3.0;
+  const bldgLength = parseFloat(building.building_length) || 30.0;
+  const bldgWidth = parseFloat(building.building_width) || 20.0;
+  const totalFloors = parseInt(building.total_floors, 10) || building.floors.length || 4;
+  const typology = building.building_typology || document.getElementById('input-bldg-typology')?.value || 'rectangular';
+
+  // Center orbit controls on middle of building volume
+  if (CadastreState.threeControls) {
+    CadastreState.threeControls.target.set(0, (totalFloors * floorHeight) / 2, 0);
+  }
 
   // Add central atrium core if radial or cruciform
   if (typology === 'radial_3wing' || typology === 'cruciform_4wing') {
-    for (let f = 0; f < building.total_floors; f++) {
+    for (let f = 0; f < totalFloors; f++) {
       const coreGeom = new THREE.CylinderGeometry(3.5, 3.5, floorHeight - 0.2, typology === 'radial_3wing' ? 3 : 4);
       const coreMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.85 });
       const coreMesh = new THREE.Mesh(coreGeom, coreMat);
@@ -983,55 +989,60 @@ function render3DBuildingMesh(building) {
     }
   }
 
-  building.floors.forEach(floor => {
-    const flatsCount = floor.flats.length;
+  building.floors.forEach((floor, fIdx) => {
+    const floorNum = typeof floor.floor_number === 'number' ? floor.floor_number : fIdx;
+    const flatsCount = (floor.flats && floor.flats.length) ? floor.flats.length : 1;
 
-    floor.flats.forEach((flat, idx) => {
-      const posData = getFlatPositionAndRotation(typology, floor.floor_number, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flat.height);
-      const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
-      
-      const isSelected = CadastreState.selectedFlatIds.size === 0 || CadastreState.selectedFlatIds.has(flat.flat_id);
-      const displayColor = isSelected ? flat.color_hex : '#94a3b8';
-      const opacity = isSelected ? 0.92 : 0.25;
+    if (floor.flats && Array.isArray(floor.flats)) {
+      floor.flats.forEach((flat, idx) => {
+        const flatH = parseFloat(flat.height) || floorHeight;
+        const posData = getFlatPositionAndRotation(typology, floorNum, idx, flatsCount, bldgLength, bldgWidth, floorHeight, flatH);
+        const geom = new THREE.BoxGeometry(posData.geomL, posData.geomH, posData.geomW);
+        
+        const isSelected = CadastreState.selectedFlatIds.size === 0 || CadastreState.selectedFlatIds.has(flat.flat_id);
+        const displayColor = isSelected ? (flat.color_hex || '#4ECDC4') : '#94a3b8';
+        const opacity = isSelected ? 0.92 : 0.25;
 
-      const mat = new THREE.MeshStandardMaterial({
-        color: displayColor,
-        roughness: 0.3,
-        metalness: 0.1,
-        transparent: true,
-        opacity: opacity
+        const mat = new THREE.MeshStandardMaterial({
+          color: displayColor,
+          roughness: 0.3,
+          metalness: 0.1,
+          transparent: true,
+          opacity: opacity
+        });
+
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(posData.posX, posData.posY, posData.posZ);
+        if (posData.rotY) mesh.rotation.y = posData.rotY;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        const edgeGeom = new THREE.EdgesGeometry(geom);
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x072242, linewidth: 1.5, transparent: true, opacity: 0.6 });
+        const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+        mesh.add(edgeLine);
+
+        mesh.userData = {
+          flatId: flat.flat_id,
+          flatNumber: flat.flat_number || `Flat ${floorNum * 100 + idx + 1}`,
+          floorNumber: floorNum,
+          floorLabel: floor.floor_label || `Floor ${floorNum}`,
+          ulpin3D: flat.ulpin_3d || '',
+          colorHex: flat.color_hex || '#4ECDC4',
+          baseY: posData.posY,
+          area: flat.area_sqm || (flat.width * flat.length) || 0,
+          owner: flat.owner_name || 'Allotted Holder',
+          deed: flat.deed_reference || ''
+        };
+
+        CadastreState.threeScene.add(mesh);
+        CadastreState.threeMeshes.push(mesh);
       });
-
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(posData.posX, posData.posY, posData.posZ);
-      if (posData.rotY) mesh.rotation.y = posData.rotY;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-
-      const edgeGeom = new THREE.EdgesGeometry(geom);
-      const edgeMat = new THREE.LineBasicMaterial({ color: 0x072242, linewidth: 1.5, transparent: true, opacity: 0.6 });
-      const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
-      mesh.add(edgeLine);
-
-      mesh.userData = {
-        flatId: flat.flat_id,
-        flatNumber: flat.flat_number,
-        floorNumber: floor.floor_number,
-        floorLabel: floor.floor_label,
-        ulpin3D: flat.ulpin_3d,
-        colorHex: flat.color_hex,
-        baseY: posData.posY,
-        area: flat.area_sqm,
-        owner: flat.owner_name,
-        deed: flat.deed_reference
-      };
-
-      CadastreState.threeScene.add(mesh);
-      CadastreState.threeMeshes.push(mesh);
-    });
+    }
   });
 
   applyFloorExplode(CadastreState.explodeFactor);
+  setTimeout(onWindowResize, 50);
 }
 
 function applyFloorExplode(factor) {
